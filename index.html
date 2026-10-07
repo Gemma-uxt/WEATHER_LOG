@@ -56,7 +56,7 @@
   </main>
 
   <script>
-    fetch("data.json")
+    fetch("data.json?t=" + Date.now())
       .then(res => res.json())
       .then(data => {
         document.getElementById("message").textContent = "총 " + data.length + "일 기록";
