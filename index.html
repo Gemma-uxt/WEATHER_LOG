@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>서울 날씨 기록장</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       background-color: #f2f6fa;
@@ -24,12 +25,16 @@
     main {
       padding: 40px 20px;
     }
-    table {
-      margin: 0 auto;
-      border-collapse: collapse;
+    .box {
       background-color: white;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    table {
       width: 100%;
-      max-width: 500px;
+      border-collapse: collapse;
     }
     th, td {
       padding: 10px;
@@ -47,12 +52,19 @@
   </header>
   <main>
     <p id="message">불러오는 중...</p>
-    <table>
-      <thead>
-        <tr><th>날짜</th><th>최고</th><th>최저</th><th>강수량</th></tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
+
+    <div class="box">
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="box">
+      <table>
+        <thead>
+          <tr><th>날짜</th><th>최고</th><th>최저</th><th>강수량</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
   </main>
 
   <script>
@@ -60,9 +72,23 @@
       .then(res => res.json())
       .then(data => {
         document.getElementById("message").textContent = "총 " + data.length + "일 기록";
-        document.getElementById("rows").innerHTML = data.map(d =>
+
+        // 표: 최신 날짜가 맨 위로 오게
+        document.getElementById("rows").innerHTML = data.slice().reverse().map(d =>
           `<tr><td>${d.date}</td><td>${d.max}°C</td><td>${d.min}°C</td><td>${d.rain}mm</td></tr>`
         ).join("");
+
+        // 그래프
+        new Chart(document.getElementById("chart"), {
+          type: "line",
+          data: {
+            labels: data.map(d => d.date),
+            datasets: [
+              { label: "최고 기온", data: data.map(d => d.max), borderColor: "#ff7f50", backgroundColor: "#ff7f50" },
+              { label: "최저 기온", data: data.map(d => d.min), borderColor: "#1e3a6e", backgroundColor: "#1e3a6e" }
+            ]
+          }
+        });
       })
       .catch(() => {
         document.getElementById("message").textContent = "데이터를 불러오지 못했어요.";
