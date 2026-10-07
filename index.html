@@ -24,6 +24,21 @@
     main {
       padding: 40px 20px;
     }
+    table {
+      margin: 0 auto;
+      border-collapse: collapse;
+      background-color: white;
+      width: 100%;
+      max-width: 500px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #dde4ec;
+    }
+    th {
+      background-color: #1e3a6e;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -31,7 +46,27 @@
     <h1>서울 날씨 기록장</h1>
   </header>
   <main>
-    <p>곧 이곳에 매일 날씨가 쌓일 거예요.</p>
+    <p id="message">불러오는 중...</p>
+    <table>
+      <thead>
+        <tr><th>날짜</th><th>최고</th><th>최저</th><th>강수량</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
   </main>
+
+  <script>
+    fetch("data.json")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("message").textContent = "총 " + data.length + "일 기록";
+        document.getElementById("rows").innerHTML = data.map(d =>
+          `<tr><td>${d.date}</td><td>${d.max}°C</td><td>${d.min}°C</td><td>${d.rain}mm</td></tr>`
+        ).join("");
+      })
+      .catch(() => {
+        document.getElementById("message").textContent = "데이터를 불러오지 못했어요.";
+      });
+  </script>
 </body>
 </html>
