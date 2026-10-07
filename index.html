@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>서울 날씨 기록장</title>
+  <title>날씨 기록장</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -15,19 +15,34 @@
     }
     header {
       background-color: #1e3a6e;
-      padding: 30px 20px;
+      padding: 30px 20px 20px;
     }
     h1 {
       color: #ffd166;
       font-size: 48px;
-      margin: 0;
+      margin: 0 0 20px;
+    }
+    .tab {
+      background: transparent;
+      color: #ffd166;
+      border: 2px solid #ffd166;
+      border-radius: 20px;
+      padding: 8px 24px;
+      margin: 0 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #ffd166;
+      color: #1e3a6e;
+      font-weight: bold;
     }
     main {
-      padding: 40px 20px;
+      padding: 30px 20px;
     }
     .box {
       background-color: white;
-      max-width: 600px;
+      max-width: 700px;
       margin: 20px auto;
       padding: 20px;
       border-radius: 12px;
@@ -37,18 +52,22 @@
       border-collapse: collapse;
     }
     th, td {
-      padding: 10px;
+      padding: 10px 6px;
       border-bottom: 1px solid #dde4ec;
     }
     th {
       background-color: #1e3a6e;
       color: white;
     }
+    .up { color: #e63946; font-weight: bold; }
+    .down { color: #1d70b8; font-weight: bold; }
   </style>
 </head>
 <body>
   <header>
-    <h1>서울 날씨 기록장</h1>
+    <h1 id="title">서울 날씨 기록장</h1>
+    <button class="tab" data-city="seoul">서울</button>
+    <button class="tab" data-city="busan">부산</button>
   </header>
   <main>
     <p id="message">불러오는 중...</p>
@@ -60,7 +79,10 @@
     <div class="box">
       <table>
         <thead>
-          <tr><th>날짜</th><th>최고</th><th>최저</th><th>강수량</th></tr>
+          <tr>
+            <th>날짜</th><th>최고</th><th>최저</th>
+            <th>평균</th><th>전일 대비</th><th>강수량</th>
+          </tr>
         </thead>
         <tbody id="rows"></tbody>
       </table>
@@ -68,31 +90,81 @@
   </main>
 
   <script>
-    fetch("data.json?t=" + Date.now())
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("message").textContent = "총 " + data.length + "일 기록";
+    const CITY_NAMES = { seoul: "서울", busan: "부산" };
+    let chart = null;
 
-        // 표: 최신 날짜가 맨 위로 오게
-        document.getElementById("rows").innerHTML = data.slice().reverse().map(d =>
-          `<tr><td>${d.date}</td><td>${d.max}°C</td><td>${d.min}°C</td><td>${d.rain}mm</td></tr>`
-        ).join("");
+    // 숫자를 "21.7°C" 모양으로 (값이 없으면 "-")
+    function temp(v) {
+      return v == null ? "-" : v.toFixed(1) + "°C";
+    }
 
-        // 그래프
-        new Chart(document.getElementById("chart"), {
-          type: "line",
-          data: {
-            labels: data.map(d => d.date),
-            datasets: [
-              { label: "최고 기온", data: data.map(d => d.max), borderColor: "#ff7f50", backgroundColor: "#ff7f50" },
-              { label: "최저 기온", data: data.map(d => d.min), borderColor: "#1e3a6e", backgroundColor: "#1e3a6e" }
-            ]
-          }
+    // 전일 대비 표시 만들기
+    function change(today, yesterday) {
+      if (today == null || yesterday == null) return "-";
+      const diff = Math.round((today - yesterday) * 10) / 10;
+      if (diff > 0) return `<span class="up">▲ ${diff.toFixed(1)}°C</span>`;
+      if (diff < 0) return `<span class="down">▼ ${Math.abs(diff).toFixed(1)}°C</span>`;
+      return "0.0°C";
+    }
+
+    function load(city) {
+      // 제목과 버튼 모양 바꾸기
+      document.getElementById("title").textContent = CITY_NAMES[city] + " 날씨 기록장";
+      document.querySelectorAll(".tab").forEach(b =>
+        b.classList.toggle("active", b.dataset.city === city)
+      );
+      document.getElementById("message").textContent = "불러오는 중...";
+
+      fetch(`data-${city}.json?t=` + Date.now())
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("message").textContent = "총 " + data.length + "일 기록";
+
+          // 표 (날짜 순서대로 계산한 뒤, 최신이 위로 오게 뒤집기)
+          const rows = data.map((d, i) => {
+            const prev = i > 0 ? data[i - 1].avg : null;
+            return `<tr>
+              <td>${d.date}</td>
+              <td>${temp(d.max)}</td>
+              <td>${temp(d.min)}</td>
+              <td>${temp(d.avg)}</td>
+              <td>${change(d.avg, prev)}</td>
+              <td>${d.rain}mm</td>
+            </tr>`;
+          });
+          document.getElementById("rows").innerHTML = rows.reverse().join("");
+
+          // 그래프 (예전 그래프는 지우고 새로 그리기)
+          if (chart) chart.destroy();
+          chart = new Chart(document.getElementById("chart"), {
+            type: "line",
+            data: {
+              labels: data.map(d => d.date),
+              datasets: [
+                { label: "최고 기온", data: data.map(d => d.max), borderColor: "#ff7f50", backgroundColor: "#ff7f50" },
+                { label: "평균 기온", data: data.map(d => d.avg), borderColor: "#2a9d8f", backgroundColor: "#2a9d8f" },
+                { label: "최저 기온", data: data.map(d => d.min), borderColor: "#1e3a6e", backgroundColor: "#1e3a6e" }
+              ]
+            }
+          });
+        })
+        .catch(() => {
+          document.getElementById("message").textContent = "데이터를 불러오지 못했어요.";
+          document.getElementById("rows").innerHTML = "";
+          if (chart) { chart.destroy(); chart = null; }
         });
+    }
+
+    // 버튼을 누르면 해당 도시 불러오기 (주소 끝에 #busan 같은 표시도 남김)
+    document.querySelectorAll(".tab").forEach(b =>
+      b.addEventListener("click", () => {
+        location.hash = b.dataset.city;
+        load(b.dataset.city);
       })
-      .catch(() => {
-        document.getElementById("message").textContent = "데이터를 불러오지 못했어요.";
-      });
+    );
+
+    // 처음 열 때: 주소가 #busan이면 부산, 아니면 서울
+    load(location.hash === "#busan" ? "busan" : "seoul");
   </script>
 </body>
 </html>
