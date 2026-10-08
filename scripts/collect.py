@@ -37,3 +37,11 @@ for name, (lat, lon) in CITIES.items():
 
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(name, "저장 완료:", record)
+
+# 마지막 자동 업데이트 시각 기록 (한국 시간)
+from datetime import datetime, timezone, timedelta
+now = datetime.now(timezone(timedelta(hours=9)))
+Path("updated.json").write_text(
+    json.dumps({"updated_at": now.strftime("%Y-%m-%d %H:%M")}),
+    encoding="utf-8",
+)
