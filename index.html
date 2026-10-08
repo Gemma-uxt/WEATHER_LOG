@@ -15,21 +15,36 @@
     }
     header {
       background-color: #1e3a6e;
-      padding: 30px 20px 20px;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     h1 {
       color: #ffd166;
-      font-size: 48px;
-      margin: 0 0 20px;
+      font-size: 28px;
+      margin: 0;
+    }
+    .side {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    #updated {
+      font-size: 12px;
+      color: #b9c6da;
     }
     .tab {
       background: transparent;
       color: #ffd166;
       border: 2px solid #ffd166;
       border-radius: 20px;
-      padding: 8px 24px;
-      margin: 0 4px;
-      font-size: 16px;
+      padding: 5px 18px;
+      margin-left: 4px;
+      font-size: 14px;
       cursor: pointer;
     }
     .tab.active {
@@ -59,6 +74,7 @@
       background-color: #1e3a6e;
       color: white;
     }
+    th small { font-size: 12px; font-weight: normal; opacity: 0.8; }
     .up { color: #e63946; font-weight: bold; }
     .down { color: #1d70b8; font-weight: bold; }
   </style>
@@ -66,8 +82,13 @@
 <body>
   <header>
     <h1 id="title">서울 날씨 기록장</h1>
-    <button class="tab" data-city="seoul">서울</button>
-    <button class="tab" data-city="busan">부산</button>
+    <div class="side">
+      <div>
+        <button class="tab" data-city="seoul">서울</button>
+        <button class="tab" data-city="busan">부산</button>
+      </div>
+      <span id="updated">최종 자동 업데이트: 확인 중...</span>
+    </div>
   </header>
   <main>
     <p id="message">불러오는 중...</p>
@@ -93,12 +114,20 @@
     const CITY_NAMES = { seoul: "서울", busan: "부산" };
     let chart = null;
 
-    // 숫자를 "21.7°C" 모양으로 (값이 없으면 "-")
+    // 최종 자동 업데이트 시각 표시
+    fetch("updated.json?t=" + Date.now())
+      .then(res => res.json())
+      .then(u => {
+        document.getElementById("updated").textContent = "최종 자동 업데이트: " + u.updated_at;
+      })
+      .catch(() => {
+        document.getElementById("updated").textContent = "최종 자동 업데이트: 기록 없음";
+      });
+
     function temp(v) {
       return v == null ? "-" : v.toFixed(1) + "°C";
     }
 
-    // 전일 대비 표시 만들기
     function change(today, yesterday) {
       if (today == null || yesterday == null) return "-";
       const diff = Math.round((today - yesterday) * 10) / 10;
@@ -108,7 +137,6 @@
     }
 
     function load(city) {
-      // 제목과 버튼 모양 바꾸기
       document.getElementById("title").textContent = CITY_NAMES[city] + " 날씨 기록장";
       document.querySelectorAll(".tab").forEach(b =>
         b.classList.toggle("active", b.dataset.city === city)
@@ -120,7 +148,6 @@
         .then(data => {
           document.getElementById("message").textContent = "총 " + data.length + "일 기록";
 
-          // 표 (날짜 순서대로 계산한 뒤, 최신이 위로 오게 뒤집기)
           const rows = data.map((d, i) => {
             const prev = i > 0 ? data[i - 1].avg : null;
             return `<tr>
@@ -134,7 +161,6 @@
           });
           document.getElementById("rows").innerHTML = rows.reverse().join("");
 
-          // 그래프 (예전 그래프는 지우고 새로 그리기)
           if (chart) chart.destroy();
           chart = new Chart(document.getElementById("chart"), {
             type: "line",
@@ -155,7 +181,6 @@
         });
     }
 
-    // 버튼을 누르면 해당 도시 불러오기 (주소 끝에 #busan 같은 표시도 남김)
     document.querySelectorAll(".tab").forEach(b =>
       b.addEventListener("click", () => {
         location.hash = b.dataset.city;
@@ -163,7 +188,6 @@
       })
     );
 
-    // 처음 열 때: 주소가 #busan이면 부산, 아니면 서울
     load(location.hash === "#busan" ? "busan" : "seoul");
   </script>
 </body>
